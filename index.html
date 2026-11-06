@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CitasVzla - La App de Citas de Venezuela</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#fdf2f8', 100: '#fce7f3', 500: '#ec4899', 600: '#db2777', 700: '#be185d', 900: '#831843' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+        .card-swipe-like { transform: rotate(14deg) translateX(140px) !important; opacity: 0 !important; transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-swipe-nope { transform: rotate(-14deg) translateX(-140px) !important; opacity: 0 !important; transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex justify-center items-center p-0 select-none">
+
+    <!-- MODAL DE ACEPTACIÓN LEGAL OBLIGATORIA (+18) -->
+    <div id="legal-terms-modal" class="absolute inset-0 bg-slate-950/95 backdrop-blur-lg z-50 flex flex-col items-center justify-center p-6 hidden">
+        <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl text-xs text-slate-300">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-600 to-amber-400 mx-auto flex items-center justify-center font-black text-white shadow-lg">
+                    <i data-lucide="shield-check" class="w-6 h-6"></i>
+                </div>
+                <h3 class="font-black text-sm text-white">Bienvenido a CitasVzla 🇻🇪</h3>
+                <p class="text-[10px] text-amber-400 font-bold">Plataforma Segura bajo Normas Legales</p>
+            </div>
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] space-y-2 max-h-40 overflow-y-auto">
+                <p><strong>1. Mayoría de Edad (+18):</strong> Uso exclusivo para adultos. Queda prohibido el ingreso de menores.</p>
+                <p><strong>2. Tolerancia Cero:</strong> Prohibido contenido explícito, acoso, estafas o fraude con referencias bancarias falsas.</p>
+                <p><strong>3. Intermediación:</strong> La app no se hace responsable por acuerdos presenciales entre usuarios.</p>
+            </div>
+            <label class="flex items-start gap-2 cursor-pointer text-[10px] text-slate-400 pt-1">
+                <input type="checkbox" id="accept-legal-check" class="mt-0.5 accent-rose-500">
+                <span>He leído, soy mayor de 18 años y acepto los Términos y Condiciones Legales.</span>
+            </label>
+            <button onclick="acceptLegalTerms()" class="w-full py-3 bg-rose-600 hover:bg-rose-500 font-bold text-white rounded-xl transition shadow">Entrar a la Plataforma</button>
+        </div>
+    </div>
+
+    <div class="w-full max-w-md h-[100vh] bg-slate-900 flex flex-col relative overflow-hidden border-0 border-slate-800">
+        
+        <!-- HEADER LIMPIO -->
+        <header class="px-4 py-3 border-b border-slate-800/80 flex justify-between items-center bg-slate-900/90 z-20">
+            <div class="flex items-center gap-2">
+                <div id="app-logo-container" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 via-pink-500 to-amber-400 flex items-center justify-center font-black text-white shadow-lg shadow-rose-950/40 overflow-hidden">
+                    <i data-lucide="heart-handshake" class="w-5 h-5"></i>
+                </div>
+                <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-rose-500 via-pink-400 to-amber-300 bg-clip-text text-transparent flex items-center gap-1">
+                    CitasVzla
+                    <span id="vip-badge" class="hidden text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 font-bold uppercase tracking-wider">VIP</span>
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <div onclick="switchTab('donations')" class="px-2.5 py-1 rounded-full bg-slate-800 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="coins" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span id="user-coins-display">0</span>
+                </div>
+                <button onclick="switchTab('donations')" class="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-rose-600 text-white font-semibold text-xs flex items-center gap-1.5 shadow-lg shadow-rose-950/50 hover:brightness-110 active:scale-95 transition">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 fill-current text-amber-200"></i>
+                    <span>Tienda</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- VIEWPORT SECTION MANAGER -->
+        <main id="app-viewport" class="flex-1 relative overflow-hidden bg-slate-950">
+            
+            <!-- TAB 1: DESCUBRIR (SWIPE, FILTROS Y BOTÓN DE DENUNCIA) -->
+            <section id="tab-discover" class="absolute inset-0 flex flex-col p-4 transition-all duration-300">
+                <div class="mb-3 flex items-center justify-between bg-slate-900/80 px-3 py-2 rounded-2xl text-xs text-slate-400 border border-slate-800/80 shadow-inner">
+                    <div class="flex items-center gap-2 truncate">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-rose-500 shrink-0"></i>
+                        <select id="state-filter" onchange="changeStateFilter()" class="bg-transparent font-semibold text-slate-200 focus:outline-none cursor-pointer">
+                            <option value="Toda Venezuela" class="bg-slate-900">🇻🇪 Toda Venezuela</option>
+                            <option value="Caracas" class="bg-slate-900">Distrito Capital (Caracas)</option>
+                            <option value="Guárico" class="bg-slate-900">Guárico (San Juan)</option>
+                            <option value="Carabobo" class="bg-slate-900">Carabobo (Valencia)</option>
+                            <option value="Aragua" class="bg-slate-900">Aragua (Maracay)</option>
+                            <option value="Zulia" class="bg-slate-900">Zulia (Maracaibo)</option>
+                        </select>
+                    </div>
+                    <button onclick="reportCurrentProfile()" class="text-[10px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1">
+                        <i data-lucide="flag" class="w-3.5 h-3.5"></i> Denunciar
+                    </button>
+                </div>
+
+                <div id="cards-container" class="relative flex-1 w-full overflow-hidden flex items-center justify-center">
+                    <div id="main-card" class="w-full h-full bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden relative shadow-2xl flex flex-col justify-end p-5">
+                        <img id="card-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600" class="absolute inset-0 w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                        <div class="relative z-10 space-y-1">
+                            <div class="flex items-center gap-2">
+                                <h2 id="card-name" class="text-2xl font-black text-white">Valeria, 24</h2>
+                                <span class="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30 font-bold">Verificada</span>
+                            </div>
+                            <p id="card-loc" class="text-xs text-slate-300 flex items-center gap-1 font-medium">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5 text-rose-500"></i> Caracas
+                            </p>
+                            <p id="card-bio" class="text-xs text-slate-400 pt-1 line-clamp-2">Pasatiempos: Bailar salsa, ir a la playa y tomar café 🌴💃</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-center gap-6 mt-4 mb-1">
+                    <button onclick="handleSwipe('nope')" class="w-14 h-14 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center shadow-xl active:scale-90 transition">
+                        <i data-lucide="x" class="w-7 h-7"></i>
+                    </button>
+                    <button onclick="handleSwipe('superlike')" class="w-11 h-11 rounded-full bg-slate-900 border border-slate-800 text-amber-400 hover:text-amber-300 flex items-center justify-center shadow-xl active:scale-90 transition">
+                        <i data-lucide="star" class="w-5 h-5 fill-current"></i>
+                    </button>
+                    <button onclick="handleSwipe('like')" class="w-14 h-14 rounded-full bg-gradient-to-tr from-rose-600 via-pink-600 to-rose-500 text-white flex items-center justify-center shadow-xl shadow-rose-950/60 active:scale-90 transition">
+                        <i data-lucide="heart" class="w-7 h-7 fill-current"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- TAB 2: MENSAJES & CHAT FREEMIUM (CON FILTRO DE PALABRAS) -->
+            <section id="tab-matches" class="absolute inset-0 flex flex-col p-4 hidden bg-slate-950">
+                <h2 class="text-base font-extrabold mb-3 flex items-center gap-2 text-slate-100">
+                    <i data-lucide="message-circle" class="w-5 h-5 text-rose-500"></i>
+                    <span>Chat Activo (<span id="chat-status-label">Gratis: <span id="msg-counter">0</span>/5 mensajes</span>)</span>
+                </h2>
+
+                <div id="chat-box" class="flex-1 overflow-y-auto space-y-2 pr-1 mb-3 bg-slate-900/50 p-3 rounded-2xl border border-slate-800">
+                    <div class="p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300">
+                        <span class="font-bold text-rose-400">Camila:</span> ¡Hola! ¿Qué tal? Escríbeme por aquí.
+                    </div>
+                </div>
+
+                <div id="chat-limit-banner" class="hidden p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 mb-2 text-center">
+                    ⚠️ Tu periodo de mensajes gratis expiró o tu VIP venció. <button onclick="switchTab('donations')" class="underline font-bold text-white">Obtén VIP Plata u Oro</button> para continuar.
+                </div>
+
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Escribe un mensaje..." class="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-3 text-white text-xs focus:outline-none focus:border-rose-500">
+                    <button onclick="sendChatMessage()" class="px-4 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- TAB 3: LIVES & RANKING TOP CREADORES -->
+            <section id="tab-lives" class="absolute inset-0 flex flex-col p-4 overflow-y-auto hidden bg-slate-950 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-base font-black text-white flex items-center gap-2">
+                        <i data-lucide="radio" class="w-5 h-5 text-rose-500 animate-pulse"></i> Transmisiones En Vivo 🔴
+                    </h2>
+                    <button onclick="startMyLiveCamera()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1">
+                        <i data-lucide="video" class="w-3.5 h-3.5"></i> Iniciar Live
+                    </button>
+                </div>
+
+                <div class="bg-slate-900/90 rounded-2xl p-3.5 border border-amber-500/30 space-y-2">
+                    <h3 class="font-bold text-amber-400 text-xs flex items-center gap-1.5"><i data-lucide="trophy" class="w-4 h-4"></i> Podio Top Creadores (Regalos del Mes)</h3>
+                    <div class="grid grid-cols-3 gap-2 text-center text-[11px]">
+                        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                            <span class="text-amber-300 font-black text-sm">🥇</span>
+                            <p class="font-bold text-white truncate mt-0.5">Mariana</p>
+                            <p class="text-[10px] text-amber-400 font-semibold">1,250 🪙</p>
+                        </div>
+                        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                            <span class="text-slate-300 font-black text-sm">🥈</span>
+                            <p class="font-bold text-white truncate mt-0.5">Sofía</p>
+                            <p class="text-[10px] text-amber-400 font-semibold">940 🪙</p>
+                        </div>
+                        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                            <span class="text-amber-600 font-black text-sm">🥉</span>
+                            <p class="font-bold text-white truncate mt-0.5">Valeria</p>
+                            <p class="text-[10px] text-amber-400 font-semibold">610 🪙</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 relative shadow-xl flex flex-col justify-end h-40 p-3 group">
+                        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=400" class="absolute inset-0 w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                        <span class="absolute top-2.5 left-2.5 bg-rose-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">LIVE</span>
+                        <div class="relative z-10 space-y-1">
+                            <p class="font-bold text-white text-xs">Mariana, 23</p>
+                            <button onclick="openLiveRoom('Mariana, 23', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=400')" class="w-full mt-1 py-1 bg-amber-500 text-slate-950 font-extrabold text-[10px] rounded-lg shadow transition">Entrar al Live 🔴</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 relative shadow-xl flex flex-col justify-end h-40 p-3 group">
+                        <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=400" class="absolute inset-0 w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
+                        <span class="absolute top-2.5 left-2.5 bg-rose-600 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">LIVE</span>
+                        <div class="relative z-10 space-y-1">
+                            <p class="font-bold text-white text-xs">Sofía, 21</p>
+                            <button onclick="openLiveRoom('Sofía, 21', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=400')" class="w-full mt-1 py-1 bg-amber-500 text-slate-950 font-extrabold text-[10px] rounded-lg shadow transition">Entrar al Live 🔴</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SALA LIVE INTERACTIVA CON CÁMARA REAL -->
+            <section id="live-room-modal" class="absolute inset-0 bg-slate-950 hidden z-50 flex flex-col">
+                <div class="absolute inset-0 overflow-hidden bg-black flex items-center justify-center">
+                    <video id="live-webcam-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                    <div id="camera-fallback-msg" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900 hidden">
+                        <i data-lucide="video-off" class="w-12 h-12 text-rose-500 mb-2"></i>
+                        <p class="text-sm font-bold text-white">Cámara bloqueada o no soportada</p>
+                    </div>
+                    <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none"></div>
+                </div>
+
+                <div class="relative z-10 p-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-1.5 pr-3 rounded-full border border-slate-700/50">
+                        <div id="live-host-avatar" class="w-7 h-7 rounded-full bg-rose-500 overflow-hidden border border-white"></div>
+                        <div>
+                            <p id="live-host-name" class="text-xs font-bold text-white leading-tight">Transmitiendo</p>
+                            <p class="text-[9px] text-emerald-400 font-medium">🔴 En vivo protegido</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1">
+                            <i data-lucide="coins" class="w-3 h-3"></i> <span id="modal-user-coins">0</span>
+                        </span>
+                        <button onclick="closeLiveRoom()" class="w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center border border-white/20">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative z-10 flex-1 flex flex-col justify-end p-4 space-y-3 overflow-hidden">
+                    <div id="live-chat-messages" class="max-h-48 overflow-y-auto space-y-1.5 pr-2 text-xs">
+                        <div class="bg-black/40 backdrop-blur-sm p-1.5 px-2.5 rounded-xl text-slate-200 max-w-[85%] border border-white/5">
+                            <span class="font-bold text-amber-400">Sistema:</span> Moderación activa. Términos legales vigentes.
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 overflow-x-auto pb-1">
+                            <button onclick="sendCoinGift('💖 Corazón', 10)" class="px-2.5 py-1 bg-pink-600/80 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-pink-400/30 shrink-0">💖 Corazón (10 🪙)</button>
+                            <button onclick="sendCoinGift('🌹 Rosa', 25)" class="px-2.5 py-1 bg-rose-600/80 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-rose-400/30 shrink-0">🌹 Rosa (25 🪙)</button>
+                            <button onclick="sendCoinGift('⭐ Estrella', 50)" class="px-2.5 py-1 bg-amber-600/80 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-amber-400/30 shrink-0">⭐ Estrella (50 🪙)</button>
+                            <button onclick="sendCoinGift('👑 Corona', 100)" class="px-2.5 py-1 bg-yellow-600/80 backdrop-blur-md rounded-xl text-[10px] font-bold text-white border border-yellow-400/30 shrink-0">👑 Corona (100 🪙)</button>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <input type="text" id="live-chat-input" placeholder="Comenta con respeto..." class="flex-1 bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-xl p-2.5 text-white text-xs focus:outline-none">
+                            <button onclick="sendLiveMessage()" class="px-3.5 bg-rose-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: PERFIL, HISTORIAL, GANANCIAS & PANEL ADMIN -->
+            <section id="tab-profile" class="absolute inset-0 flex flex-col p-4 overflow-y-auto hidden bg-slate-950">
+                <div id="view-user-profile" class="space-y-4">
+                    <div class="text-center mb-2">
+                        <div onclick="document.getElementById('hidden-file-input').click()" class="w-16 h-16 rounded-full bg-slate-800 mx-auto overflow-hidden border-2 border-rose-500 mb-1 shadow-xl flex items-center justify-center relative cursor-pointer group">
+                            <div id="user-avatar-preview" class="w-full h-full flex items-center justify-center">
+                                <i data-lucide="camera" class="w-7 h-7 text-rose-400"></i>
+                            </div>
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[9px] text-white font-bold">Cambiar</div>
+                        </div>
+                        <input type="file" id="hidden-file-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                        <span class="text-[10px] text-rose-400 font-medium">Toca la foto para cambiar</span>
+
+                        <h2 class="text-lg font-black text-white mt-1">Mi Perfil Personal</h2>
+                    </div>
+
+                    <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 text-xs space-y-3">
+                        <div>
+                            <label class="block text-slate-400 text-[11px] mb-1 font-medium">Nombre y Edad</label>
+                            <input type="text" id="user-name-input" placeholder="Ej: Carlos, 25" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-[11px] mb-1 font-medium">Ubicación</label>
+                            <input type="text" id="user-loc-input" placeholder="Ej: San Juan de los Morros, Guárico" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-[11px] mb-1 font-medium">Pasatiempos</label>
+                            <input type="text" id="user-hobbies-input" placeholder="Ej: Música, motos, playa..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs">
+                        </div>
+                        <button onclick="saveUserProfile()" class="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition">Guardar Cambios</button>
+                    </div>
+
+                    <!-- HISTORIAL DE SOLICITUDES DEL USUARIO -->
+                    <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 text-xs space-y-2">
+                        <h3 class="font-bold text-slate-200 flex items-center gap-1.5"><i data-lucide="history" class="w-4 h-4 text-rose-500"></i> Mi Historial de Pagos y Referencias</h3>
+                        <div id="user-requests-history" class="space-y-1.5 max-h-36 overflow-y-auto">
+                            <p class="text-slate-500 text-center py-2">No has enviado referencias aún.</p>
+                        </div>
+                    </div>
+
+                    <!-- GANANCIAS & CANJE (COMISIÓN 20% / 80%) -->
+                    <div class="bg-slate-900 rounded-2xl p-4 border border-amber-500/30 text-xs space-y-3">
+                        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                            <span class="font-bold text-amber-400 flex items-center gap-1.5"><i data-lucide="wallet" class="w-4 h-4"></i> Ganancias de Lives</span>
+                            <span id="creator-badge" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-bold">Creador Inactivo</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800">
+                            <div>
+                                <p class="text-slate-400 text-[10px]">Monedas Ganadas</p>
+                                <p id="streamer-earned-coins" class="font-black text-amber-400 text-sm">0 🪙</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-slate-400 text-[10px]">Neto (80%)</p>
+                                <p id="streamer-earned-usd" class="font-black text-emerald-400 text-sm">$0.00</p>
+                            </div>
+                        </div>
+                        <button onclick="requestRedeemCoins()" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 font-bold text-white rounded-xl transition shadow">Solicitar Canje por Pago Móvil</button>
+                    </div>
+
+                    <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                        <p class="font-bold text-slate-300">📜 CitasVzla - Compliance & Blindaje</p>
+                        <p>Sistema antifraude y control de referencias activo. Moderación de chats y reportes habilitados.</p>
+                    </div>
+
+                    <div class="pt-2 pb-6 text-center">
+                        <button onclick="requestAdminAccess()" class="text-[11px] text-slate-500 hover:text-amber-400 underline font-semibold transition">
+                            🔐 ¿Eres el Administrador? Panel Maestro
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PANEL ADMIN -->
+                <div id="view-admin-panel" class="space-y-4 hidden">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                        <div class="flex items-center gap-2">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                                <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-sm font-black text-amber-400">Panel Maestro Admin</h2>
+                                <p class="text-[10px] text-slate-400">Control de referencias y solicitudes</p>
+                            </div>
+                        </div>
+                        <button onclick="logoutAdmin()" class="px-2.5 py-1 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg text-[10px] font-bold">Salir</button>
+                    </div>
+
+                    <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800 text-xs space-y-3">
+                        <p class="font-bold text-amber-400 flex items-center gap-1.5"><i data-lucide="inbox" class="w-4 h-4"></i> Buzón de Actividad (<span id="pending-badge-count">0</span> Pendientes)</p>
+                        <div id="admin-inbox-list" class="space-y-2 max-h-72 overflow-y-auto">
+                            <p class="text-slate-500 text-center py-3">No hay solicitudes pendientes.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: TIENDA VIP Y PAGO MÓVIL BLINDADO -->
+            <section id="tab-donations" class="absolute inset-0 flex flex-col p-4 overflow-y-auto hidden bg-slate-950 z-10 space-y-4">
+                <div class="flex justify-between items-center mb-1">
+                    <button onclick="switchTab('discover')" class="text-xs text-rose-400 font-bold flex items-center gap-1"><i data-lucide="arrow-left" class="w-4 h-4"></i> Volver</button>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 via-rose-500 to-pink-600 mx-auto flex items-center justify-center shadow-xl mb-2">
+                        <i data-lucide="sparkles" class="w-7 h-7 text-white"></i>
+                    </div>
+                    <h2 class="text-lg font-black text-white">Tienda VIP & Creador 🇻🇪</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Membresías, Paquete Creador y Monedas.</p>
+                </div>
+
+                <div class="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-xs text-rose-300 space-y-1">
+                    <p class="font-bold flex items-center gap-1"><i data-lucide="clock" class="w-4 h-4 text-rose-400"></i> Horario de Verificación:</p>
+                    <p class="text-[11px] text-slate-300">Lunes a Domingo: <strong>9:00 AM - 1:00 PM</strong> y <strong>4:00 PM - 8:00 PM</strong>.</p>
+                </div>
+
+                <div class="bg-slate-900 rounded-2xl p-3.5 border border-amber-500/30 text-xs space-y-2 shadow-xl">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-800 text-amber-400 font-bold">
+                        <span class="flex items-center gap-1"><i data-lucide="landmark" class="w-4 h-4"></i> Datos Pago Móvil</span>
+                        <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Activo</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-[11px]">
+                        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800"><p class="text-slate-500">Banco</p><p class="font-bold text-slate-100">0104 (Ven. Crédito)</p></div>
+                        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800"><p class="text-slate-500">Cédula</p><p class="font-bold text-slate-100">V-28.176.519</p></div>
+                        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800"><p class="text-slate-500">Teléfono</p><p class="font-bold text-slate-100">0412-3406837</p></div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4 text-rose-500"></i> Membresías VIP (30 Días)</h3>
+                    
+                    <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                        <div class="flex justify-between items-center"><span class="font-black text-slate-200 text-sm">⭐ VIP Plata ($5)</span><span class="text-amber-400 font-bold">+50 Monedas 🪙</span></div>
+                        <div class="space-y-2 pt-1">
+                            <input type="text" id="ref-plata" maxlength="8" placeholder="Ref. Pago de 4 a 8 dígitos" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs">
+                            <input type="text" id="digits-plata" maxlength="4" placeholder="Últimos 4 dígitos del emisor" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs">
+                            <button onclick="submitVIPPlan('Plata', 5, 50, 'ref-plata', 'digits-plata')" class="w-full py-2 bg-slate-700 font-bold text-white rounded-xl text-xs transition">Enviar a Revisión</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-3.5 rounded-2xl border border-amber-500/40 space-y-2 text-xs">
+                        <div class="flex justify-between items-center"><span class="font-black text-amber-400 text-sm">👑 VIP Oro ($10)</span><span class="text-amber-400 font-bold">+100 Monedas 🪙</span></div>
+                        <div class="space-y-2 pt-1">
+                            <input type="text" id="ref-oro" maxlength="8" placeholder="Ref. Pago de 4 a 8 dígitos" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs">
+                            <input type="text" id="digits-oro" maxlength="4" placeholder="Últimos 4 dígitos del emisor" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs">
+                            <button onclick="submitVIPPlan('Oro', 10, 100, 'ref-oro', 'digits-oro')" class="w-full py-2 bg-gradient-to-r from-amber-500 to-rose-600 font-bold text-white rounded-xl text-xs transition">Enviar a Revisión</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5"><i data-lucide="shield-alert" class="w-4 h-4 text-emerald-400"></i> Licencia Creador Verificado 🔴 ($20)</h3>
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-emerald-500/40 space-y-3 text-xs">
+                        <p class="text-[11px] text-slate-300">Exclusivo mayores de 18 años. Sistema antifraude activo.</p>
+                        <div class="space-y-2 pt-1">
+                            <input type="text" id="creator-cedula" placeholder="Cédula (Ej: V-12345678)" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs">
+                            <input type="text" id="ref-creator" maxlength="8" placeholder="Referencia Pago Móvil ($20)" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs">
+                            <input type="text" id="digits-creator" maxlength="4" placeholder="Últimos 4 dígitos del emisor" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs">
+                            <label class="flex items-start gap-2 pt-1 cursor-pointer text-[10px] text-slate-400">
+                                <input type="checkbox" id="check-legal" class="mt-0.5 accent-emerald-500">
+                                <span>Certifico bajo juramento ser mayor de 18 años y acepto los Términos y Condiciones.</span>
+                            </label>
+                        </div>
+                        <button onclick="submitCreatorLicense()" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 font-bold text-white rounded-xl transition shadow">Solicitar Licencia Creador ($20)</button>
+                    </div>
+                </div>
+
+                <div class="space-y-3 pb-6">
+                    <h3 class="font-bold text-slate-200 text-xs flex items-center gap-1.5"><i data-lucide="coins" class="w-4 h-4 text-amber-400"></i> Recarga de Monedas</h3>
+                    <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="selectRecharge(50)" class="p-2 bg-slate-950 border border-slate-800 rounded-xl text-left"><p class="font-bold text-amber-400">50 Monedas 🪙</p><p class="text-[10px] text-slate-500">$5</p></button>
+                            <button onclick="selectRecharge(100)" class="p-2 bg-slate-950 border border-slate-800 rounded-xl text-left"><p class="font-bold text-amber-400">100 Monedas 🪙</p><p class="text-[10px] text-slate-500">$10</p></button>
+                        </div>
+                        <div class="space-y-2 pt-2">
+                            <input type="text" id="ref-coins" maxlength="8" placeholder="Ref. Pago recarga" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs">
+                            <input type="text" id="digits-coins" maxlength="4" placeholder="Últimos 4 dígitos" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-white text-xs">
+                            <button onclick="submitCoinsRecharge()" class="w-full py-2 bg-emerald-600 font-bold text-white rounded-xl text-xs transition">Enviar Recarga</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- MODAL DE RECIBO DIGITAL -->
+        <section id="receipt-modal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-4">
+            <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-2xl relative text-xs">
+                <div id="receipt-congrats-banner" class="hidden p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-center space-y-1">
+                    <p class="font-black text-emerald-400 text-sm">🎉 ¡Felicitaciones!</p>
+                    <p class="text-[11px] text-slate-200">Has solicitado tu Licencia de Creador. ¡Será verificada!</p>
+                </div>
+                <div class="text-center space-y-1 pb-2 border-b border-slate-800">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 via-pink-500 to-amber-400 mx-auto flex items-center justify-center font-black text-white shadow-lg">
+                        <i data-lucide="receipt" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-black text-sm text-white">Comprobante CitasVzla</h3>
+                    <p class="text-[10px] text-amber-400 font-bold">⏳ Pendiente de Verificación</p>
+                </div>
+                <div class="space-y-2 text-slate-300">
+                    <div class="flex justify-between"><span class="text-slate-500">Concepto:</span> <span id="rec-concept" class="font-bold text-white">Licencia Creador</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Titular:</span> <span id="rec-name" class="font-bold text-white">Usuario</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Cédula:</span> <span id="rec-cedula" class="font-bold text-amber-400">V-00000000</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Referencia:</span> <span id="rec-ref" class="font-bold text-emerald-400">0000</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Monto:</span> <span id="rec-amount" class="font-bold text-white">$20.00</span></div>
+                </div>
+                <button onclick="closeReceiptModal()" class="w-full py-2.5 bg-rose-600 font-bold text-white rounded-xl transition shadow">Entendido, Continuar</button>
+            </div>
+        </section>
+
+        <!-- BOTTOM NAV BAR -->
+        <nav class="h-16 bg-slate-900/90 border-t border-slate-800/80 flex items-center justify-around px-2 z-20">
+            <button onclick="switchTab('discover')" id="nav-btn-discover" class="nav-btn flex flex-col items-center justify-center w-12 h-12 text-rose-500 transition">
+                <i data-lucide="flame" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-bold">Descubrir</span>
+            </button>
+            <button onclick="switchTab('matches')" id="nav-btn-matches" class="nav-btn flex flex-col items-center justify-center w-12 h-12 text-slate-400 transition">
+                <i data-lucide="message-circle" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-bold">Mensajes</span>
+            </button>
+            <button onclick="switchTab('lives')" id="nav-btn-lives" class="nav-btn flex flex-col items-center justify-center w-12 h-12 text-slate-400 transition">
+                <i data-lucide="radio" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-bold">Lives 🔴</span>
+            </button>
+            <button onclick="switchTab('profile')" id="nav-btn-profile" class="nav-btn flex flex-col items-center justify-center w-12 h-12 text-slate-400 transition relative">
+                <i data-lucide="user" class="w-5 h-5"></i>
+                <span class="text-[10px] mt-1 font-bold">Perfil</span>
+                <span id="profile-alert-dot" class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 hidden animate-ping"></span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        let adminRequests = JSON.parse(localStorage.getItem('admin_requests') || '[]');
+        let msgCount = parseInt(localStorage.getItem('chat_msg_count') || '0');
+        let userCoins = parseInt(localStorage.getItem('user_coins') || '10'); 
+        let streamerCoins = parseInt(localStorage.getItem('streamer_earned_coins') || '0'); 
+        let mediaStream = null;
+
+        const forbiddenWords = ["estafa", "fraude", "banco falso", "sexo x", "nopor", "desnuda"];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('legal_accepted')) {
+                document.getElementById('legal-terms-modal').classList.remove('hidden');
+            }
+            updateCoinsDisplay();
+            if (checkVIPStatus()) {
+                document.getElementById('vip-badge').classList.remove('hidden');
+                document.getElementById('chat-status-label').innerText = 'VIP Ilimitado';
+            } else {
+                document.getElementById('chat-status-label').innerText = `Gratis: ${msgCount}/5`;
+            }
+
+            if (checkCreatorStatus()) {
+                const badge = document.getElementById('creator-badge');
+                badge.innerText = 'Creador Verificado 🔴';
+                badge.className = 'text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold';
+            }
+
+            const savedPhoto = localStorage.getItem('user_photo');
+            if (savedPhoto) document.getElementById('user-avatar-preview').innerHTML = `<img src="${savedPhoto}" class="w-full h-full object-cover">`;
+            if (localStorage.getItem('user_name')) document.getElementById('user-name-input').value = localStorage.getItem('user_name');
+            if (localStorage.getItem('user_loc')) document.getElementById('user-loc-input').value = localStorage.getItem('user_loc');
+            if (localStorage.getItem('user_hobbies')) document.getElementById('user-hobbies-input').value = localStorage.getItem('user_hobbies');
+            
+            renderUserHistory();
+            checkPendingAlerts();
+        });
+
+        function acceptLegalTerms() {
+            if (!document.getElementById('accept-legal-check').checked) {
+                alert("Debes aceptar los Términos y Condiciones para ingresar.");
+                return;
+            }
+            localStorage.setItem('legal_accepted', 'true');
+            document.getElementById('legal-terms-modal').classList.add('hidden');
+        }
+
+        function updateCoinsDisplay() {
+            document.getElementById('user-coins-display').innerText = userCoins;
+            document.getElementById('modal-user-coins').innerText = userCoins;
+            document.getElementById('streamer-earned-coins').innerText = streamerCoins + ' 🪙';
+            let usdValue = (streamerCoins * 0.10) * 0.80;
+            document.getElementById('streamer-earned-usd').innerText = '$' + usdValue.toFixed(2);
+            localStorage.setItem('user_coins', userCoins);
+            localStorage.setItem('streamer_earned_coins', streamerCoins);
+        }
+
+        function checkVIPStatus() {
+            const vipExpiry = localStorage.getItem('vip_expiry_date');
+            return vipExpiry && new Date().getTime() < parseInt(vipExpiry);
+        }
+
+        function checkCreatorStatus() {
+            const creatorExpiry = localStorage.getItem('creator_expiry_date');
+            return creatorExpiry && new Date().getTime() < parseInt(creatorExpiry);
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    localStorage.setItem('user_photo', e.target.result);
+                    document.getElementById('user-avatar-preview').innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+                    alert("¡Foto actualizada!");
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        const baseProfiles = [
+            { name: "Valeria, 24", loc: "Caracas", state: "Caracas", bio: "Pasatiempos: Bailar salsa, ir a la playa 🌴💃", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600" },
+            { name: "Andrea, 22", loc: "Valencia", state: "Carabobo", bio: "Pasatiempos: Gimnasio, diseño y viajes ✈️🏋️‍♀️", img: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600" },
+            { name: "Gabriela, 23", loc: "San Juan de los Morros", state: "Guárico", bio: "Pasatiempos: Música llanera y café ☕", img: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=600" }
+        ];
+
+        let currentIdx = 0;
+
+        function changeStateFilter() { currentIdx = 0; loadFilteredCard(); }
+        function loadFilteredCard() {
+            const selectedState = document.getElementById('state-filter').value;
+            let filtered = selectedState === "Toda Venezuela" ? baseProfiles : baseProfiles.filter(p => p.state === selectedState);
+            if(filtered.length === 0) filtered = baseProfiles;
+            const profile = filtered[currentIdx % filtered.length];
+            document.getElementById('card-name').innerText = profile.name;
+            document.getElementById('card-loc').innerText = profile.loc;
+            document.getElementById('card-bio').innerText = profile.bio;
+            document.getElementById('card-img').src = profile.img;
+        }
+
+        function handleSwipe(type) {
+            const card = document.getElementById('main-card');
+            card.classList.add(type === 'nope' ? 'card-swipe-nope' : 'card-swipe-like');
+            setTimeout(() => { currentIdx++; loadFilteredCard(); card.classList.remove('card-swipe-nope', 'card-swipe-like'); }, 300);
+        }
+
+        function reportCurrentProfile() {
+            alert("⚠️ Perfil reportado a la administración. Será revisado bajo las normas comunitarias.");
+            handleSwipe('nope');
+        }
+
+        function switchTab(tabId) {
+            ['discover', 'matches', 'lives', 'profile', 'donations'].forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if (el) el.classList.toggle('hidden', t !== tabId);
+                const btn = document.getElementById('nav-btn-' + t);
+                if (btn) {
+                    if (t === tabId) { btn.classList.remove('text-slate-400'); btn.classList.add('text-rose-500'); }
+                    else { btn.classList.remove('text-rose-500'); btn.classList.add('text-slate-400'); }
+                }
+            });
+        }
+
+        async function startMyLiveCamera() {
+            if (!checkCreatorStatus()) { alert("⚠️ Necesitas Licencia de Creador ($20) aprobada."); switchTab('donations'); return; }
+            const videoElement = document.getElementById('live-webcam-video');
+            const fallbackMsg = document.getElementById('camera-fallback-msg');
+            document.getElementById('live-host-name').innerText = localStorage.getItem('user_name') || 'Tú (Creador)';
+            const savedPhoto = localStorage.getItem('user_photo');
+            if(savedPhoto) document.getElementById('live-host-avatar').innerHTML = `<img src="${savedPhoto}" class="w-full h-full object-cover">`;
+            document.getElementById('live-room-modal').classList.remove('hidden');
+
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+                videoElement.srcObject = mediaStream;
+                videoElement.classList.remove('hidden'); fallbackMsg.classList.add('hidden');
+            } catch (error) { videoElement.classList.add('hidden'); fallbackMsg.classList.remove('hidden'); }
+        }
+
+        function openLiveRoom(hostName, bgImg) {
+            const videoElement = document.getElementById('live-webcam-video');
+            const fallbackMsg = document.getElementById('camera-fallback-msg');
+            if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+            videoElement.srcObject = null; videoElement.classList.add('hidden'); fallbackMsg.classList.add('hidden');
+            document.getElementById('live-host-name').innerText = hostName;
+            document.getElementById('live-host-avatar').innerHTML = `<img src="${bgImg}" class="w-full h-full object-cover">`;
+            document.getElementById('live-room-modal').classList.remove('hidden');
+        }
+
+        function closeLiveRoom() {
+            if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+            document.getElementById('live-room-modal').classList.add('hidden');
+        }
+
+        function sendLiveMessage() {
+            const input = document.getElementById('live-chat-input');
+            let text = input.value.trim();
+            if (!text) return;
+            for (let word of forbiddenWords) {
+                if (text.toLowerCase().includes(word)) { alert("⚠️ Mensaje bloqueado por normas comunitarias."); return; }
+            }
+            const chatMessages = document.getElementById('live-chat-messages');
+            chatMessages.innerHTML += `<div class="bg-black/50 p-1.5 px-2.5 rounded-xl text-white max-w-[85%] border border-white/10"><span class="font-bold text-rose-400">Tú:</span> ${text}</div>`;
+            input.value = ''; chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendCoinGift(giftName, cost) {
+            if (userCoins >= cost) {
+                userCoins -= cost; updateCoinsDisplay(); streamerCoins += cost; updateCoinsDisplay();
+                document.getElementById('live-chat-messages').innerHTML += `<div class="bg-amber-500/80 p-2 rounded-xl text-white font-bold">🎁 Enviaste ${giftName} (${cost} 🪙)!</div>`;
+            } else { alert("¡No tienes suficientes monedas!"); switchTab('donations'); closeLiveRoom(); }
+        }
+
+        function enviarSolicitudAdmin(tipo, detalle, rewardType, rewardValue, ref, digits, cedula = 'N/A') {
+            // ANTIFRAUDE: Validar si la referencia ya existe
+            const exists = adminRequests.some(r => r.ref === ref);
+            if (exists) { alert("⚠️ Esta referencia ya fue enviada previamente. Verifique sus datos."); return false; }
+
+            const requestObj = {
+                id: 'req_' + Date.now(), type: tipo, userName: localStorage.getItem('user_name') || 'Usuario',
+                userPhoto: localStorage.getItem('user_photo') || '', cedula: cedula, ref: ref, digits: digits,
+                text: `${detalle} | Últimos 4 dígitos: ${digits}`, rewardType: rewardType, rewardValue: rewardValue,
+                date: new Date().toLocaleTimeString(), status: 'pending'
+            };
+
+            adminRequests.unshift(requestObj);
+            localStorage.setItem('admin_requests', JSON.stringify(adminRequests));
+            renderUserHistory(); checkPendingAlerts();
+
+            document.getElementById('rec-concept').innerText = tipo;
+            document.getElementById('rec-name').innerText = requestObj.userName;
+            document.getElementById('rec-cedula').innerText = cedula;
+            document.getElementById('rec-ref').innerText = `${ref} (Term. ${digits})`;
+            document.getElementById('rec-amount').innerText = tipo.includes('$20') ? '$20.00' : '$5/$10';
+            
+            const banner = document.getElementById('receipt-congrats-banner');
+            if(tipo.includes('Licencia')) banner.classList.remove('hidden'); else banner.classList.add('hidden');
+            document.getElementById('receipt-modal').classList.remove('hidden');
+            return true;
+        }
+
+        function closeReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); switchTab('discover'); }
+
+        function submitVIPPlan(planName, price, coinsIncluded, inputId, digitsId) {
+            const ref = document.getElementById(inputId).value.trim();
+            const digits = document.getElementById(digitsId).value.trim();
+            if (ref.length >= 4 && digits.length === 4) {
+                enviarSolicitudAdmin(`VIP ${planName} ($${price})`, `Ref: ${ref} (+${coinsIncluded} monedas)`, `vip_${coinsIncluded}`, { price, coinsIncluded }, ref, digits);
+            } else { alert('Ingresa una referencia válida y los últimos 4 dígitos del emisor.'); }
+        }
+
+        function submitCreatorLicense() {
+            const cedula = document.getElementById('creator-cedula').value.trim();
+            const ref = document.getElementById('ref-creator').value.trim();
+            const digits = document.getElementById('digits-creator').value.trim();
+            if (!cedula || ref.length < 4 || digits.length !== 4 || !document.getElementById('check-legal').checked) {
+                alert("Completa todos los datos, verifica los 4 dígitos y acepta las normas.");
+                return;
+            }
+            enviarSolicitudAdmin('Licencia Creador 🔴 ($20)', `Cédula: ${cedula} | Ref: ${ref}`, 'creator', 30, ref, digits, cedula);
+        }
+
+        let pendingCoins = 0;
+        function selectRecharge(amount) { pendingCoins = amount; alert(`Seleccionaste ${amount} monedas. Ingresa tu referencia y dígitos.`); }
+        function submitCoinsRecharge() {
+            const ref = document.getElementById('ref-coins').value.trim();
+            const digits = document.getElementById('digits-coins').value.trim();
+            if (ref.length >= 4 && digits.length === 4 && pendingCoins > 0) {
+                enviarSolicitudAdmin(`Recarga ${pendingCoins} Monedas`, `Ref: ${ref}`, `coins_${pendingCoins}`, pendingCoins, ref, digits);
+                pendingCoins = 0;
+            } else { alert('Ingresa una referencia válida y los 4 dígitos.'); }
+        }
+
+        function aprobarSolicitud(reqId) {
+            let req = adminRequests.find(r => r.id === reqId);
+            if (!req) return; req.status = 'approved';
+            if (req.rewardType.startsWith('vip_') || req.rewardType.startsWith('coins_')) {
+                userCoins += req.rewardValue.coinsIncluded || req.rewardValue; updateCoinsDisplay();
+                if (req.rewardType.startsWith('vip_')) {
+                    localStorage.setItem('vip_expiry_date', new Date().getTime() + (30*86400000));
+                    document.getElementById('vip-badge').classList.remove('hidden');
+                }
+            } else if (req.rewardType === 'creator') {
+                localStorage.setItem('creator_expiry_date', new Date().getTime() + (30*86400000));
+                document.getElementById('creator-badge').innerText = 'Creador Verificado 🔴';
+            }
+            localStorage.setItem('admin_requests', JSON.stringify(adminRequests));
+            renderAdminInbox(); renderUserHistory(); checkPendingAlerts(); alert("¡Aprobado!");
+        }
+
+        function denegarSolicitud(reqId) {
+            let req = adminRequests.find(r => r.id === reqId);
+            if (!req) return; req.status = 'denied';
+            localStorage.setItem('admin_requests', JSON.stringify(adminRequests));
+            renderAdminInbox(); renderUserHistory(); checkPendingAlerts(); alert("Denegado.");
+        }
+
+        function renderUserHistory() {
+            const historyDiv = document.getElementById('user-requests-history');
+            if (adminRequests.length === 0) { historyDiv.innerHTML = `<p class="text-slate-500 text-center py-2">No hay referencias enviadas.</p>`; return; }
+            historyDiv.innerHTML = adminRequests.map(item => `
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center text-[11px]">
+                    <div><p class="font-bold text-white">${item.type}</p><p class="text-slate-400">Ref: ${item.ref}</p></div>
+                    <div>${item.status === 'pending' ? '<span class="text-amber-400 font-bold">⏳ Pendiente</span>' : item.status === 'approved' ? '<span class="text-emerald-400 font-bold">✅ Aprobado</span>' : '<span class="text-rose-500 font-bold">❌ Denegado</span>'}</div>
+                </div>
+            `).join('');
+        }
+
+        function checkPendingAlerts() {
+            const pending = adminRequests.filter(r => r.status === 'pending').length;
+            document.getElementById('pending-badge-count').innerText = pending;
+            const dot = document.getElementById('profile-alert-dot');
+            if (pending > 0) dot.classList.remove('hidden'); else dot.classList.add('hidden');
+        }
+
+        function requestRedeemCoins() {
+            if (!checkCreatorStatus()) { alert("Requiere Licencia Creador."); switchTab('donations'); return; }
+            if (streamerCoins <= 0) { alert("Sin saldo."); return; }
+            if (confirm(`Canjear saldo neto. ¿Enviar solicitud?`)) {
+                adminRequests.unshift({ id: 'req_' + Date.now(), type: '💰 Canje', userName: localStorage.getItem('user_name') || 'Usuario', text: `Canje de ${streamerCoins} monedas`, ref: 'CANJE', status: 'pending', date: new Date().toLocaleTimeString() });
+                localStorage.setItem('admin_requests', JSON.stringify(adminRequests));
+                streamerCoins = 0; updateCoinsDisplay(); renderUserHistory(); checkPendingAlerts(); alert("Solicitud enviada.");
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            let text = input.value.trim();
+            if (!text) return;
+            for (let word of forbiddenWords) {
+                if (text.toLowerCase().includes(word)) { alert("⚠️ Mensaje bloqueado por normas comunitarias."); return; }
+            }
+            if (!checkVIPStatus() && msgCount >= 5) { alert("Límite de mensajes gratis alcanzado."); switchTab('donations'); return; }
+            
+            document.getElementById('chat-box').innerHTML += `<div class="p-2.5 bg-rose-950/40 rounded-xl text-right text-xs text-slate-100">Tú: ${text}</div>`;
+            input.value = '';
+            if (!checkVIPStatus()) { msgCount++; localStorage.setItem('chat_msg_count', msgCount); document.getElementById('chat-status-label').innerText = `Gratis: ${msgCount}/5`; }
+        }
+
+        function saveUserProfile() {
+            localStorage.setItem('user_name', document.getElementById('user-name-input').value);
+            localStorage.setItem('user_loc', document.getElementById('user-loc-input').value);
+            localStorage.setItem('user_hobbies', document.getElementById('user-hobbies-input').value);
+            alert("¡Perfil guardado!");
+        }
+
+        function requestAdminAccess() {
+            if (prompt("PIN de Administrador:") === "1234") {
+                document.getElementById('view-user-profile').classList.add('hidden');
+                document.getElementById('view-admin-panel').classList.remove('hidden');
+                renderAdminInbox();
+            } else alert("PIN incorrecto.");
+        }
+
+        function logoutAdmin() {
+            document.getElementById('view-admin-panel').classList.add('hidden');
+            document.getElementById('view-user-profile').classList.remove('hidden');
+        }
+
+        function renderAdminInbox() {
+            const inbox = document.getElementById('admin-inbox-list');
+            const pendingList = adminRequests.filter(r => r.status === 'pending');
+            if (pendingList.length === 0) { inbox.innerHTML = `<p class="text-slate-500 text-center py-3">No hay solicitudes pendientes.</p>`; return; }
+            inbox.innerHTML = pendingList.map(item => `
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex justify-between items-center"><span class="font-bold text-white text-xs">${item.userName}</span><span class="text-[9px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-bold">${item.type}</span></div>
+                    <p class="text-slate-300 text-xs">${item.text}</p>
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-900 text-[10px]">
+                        <span class="text-slate-500">${item.date}</span>
+                        <div>
+                            <button onclick="aprobarSolicitud('${item.id}')" class="px-2 py-1 bg-emerald-600 font-bold text-white rounded-lg mr-1">Aprobar ✓</button>
+                            <button onclick="denegarSolicitud('${item.id}')" class="px-2 py-1 bg-rose-600 font-bold text-white rounded-lg">Denegar ✕</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
